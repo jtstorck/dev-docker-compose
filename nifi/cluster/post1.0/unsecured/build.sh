@@ -107,19 +107,28 @@ cp "$BASE_DIR/target/base/state-management.xml" "$BASE_DIR/target/basenode/state
 
 CONNECT_STRING=""
 for i in $(seq 1 $NUM_NODES); do
-  echo "server.$i=node$i.nifi:2888:3888" >> "$BASE_DIR/target/basenode/zookeeper.properties"
-  CONNECT_STRING="$CONNECT_STRING,node$i.nifi:2181"
+  echo "server.$i=node$i.nifipub:2888:3888" >> "$BASE_DIR/target/basenode/zookeeper.properties"
+  CONNECT_STRING="$CONNECT_STRING,node$i.nifipub:2181"
+#  echo "server.$i=node$i:2888:3888" >> "$BASE_DIR/target/basenode/zookeeper.properties"
+#  CONNECT_STRING="$CONNECT_STRING,node$i:2181"
 done
 CONNECT_STRING="$(echo "$CONNECT_STRING" | sed 's/^,//g')"
 sed -i '' 's/<property name="Connect String">.*/<property name="Connect String">'"$CONNECT_STRING"'<\/property>/g' "$BASE_DIR/target/basenode/state-management.xml"
 setProperty nifi.zookeeper.connect.string "$CONNECT_STRING" "$BASE_DIR/target/basenode/nifi.properties"
 
+#add network interface binding
+echo "nifi.web.http.network.interface.eth0=eth0" >> "$BASE_DIR/target/basenode/nifi.properties"
+echo "nifi.web.http.network.interface.eth1=eth1" >> "$BASE_DIR/target/basenode/nifi.properties"
+
 for i in $(seq 1 $NUM_NODES); do
   echo "Configuring node$i"
   cp -r "$BASE_DIR/target/basenode" "$BASE_DIR/target/node$i"
-  setProperty nifi.web.http.host node$i.nifi "$BASE_DIR/target/node$i/nifi.properties"
-  setProperty nifi.cluster.node.address node$i.nifi "$BASE_DIR/target/node$i/nifi.properties"
-  setProperty nifi.remote.input.socket.host node$i.nifi "$BASE_DIR/target/node$i/nifi.properties"
+  setProperty nifi.web.http.host node$i.nifipub "$BASE_DIR/target/node$i/nifi.properties"
+  setProperty nifi.cluster.node.address node$i.nifipub "$BASE_DIR/target/node$i/nifi.properties"
+  setProperty nifi.remote.input.socket.host node$i.nifipub "$BASE_DIR/target/node$i/nifi.properties"
+#  setProperty nifi.web.http.host node$i "$BASE_DIR/target/node$i/nifi.properties"
+#  setProperty nifi.cluster.node.address node$i "$BASE_DIR/target/node$i/nifi.properties"
+#  setProperty nifi.remote.input.socket.host node$i "$BASE_DIR/target/node$i/nifi.properties"
   mkdir -p "$BASE_DIR/target/node$i/state/zookeeper"
   echo "$i" > "$BASE_DIR/target/node$i/state/zookeeper/myid"
 done
@@ -136,7 +145,9 @@ echo "    restart: always" >> "$BASE_DIR/target/docker-compose.yml"
 echo "    ports:" >> "$BASE_DIR/target/docker-compose.yml"
 echo "      - 22" >> "$BASE_DIR/target/docker-compose.yml"
 echo "    networks:" >> "$BASE_DIR/target/docker-compose.yml"
-echo "      - nifi" >> "$BASE_DIR/target/docker-compose.yml"
+echo "      nifipub:" >> "$BASE_DIR/target/docker-compose.yml"
+echo "        aliases:" >> "$BASE_DIR/target/docker-compose.yml"
+echo "          - gateway.nifipub" >> "$BASE_DIR/target/docker-compose.yml"
 echo "    entrypoint:" >> "$BASE_DIR/target/docker-compose.yml"
 echo "      - /root/start.sh" >> "$BASE_DIR/target/docker-compose.yml"
 echo "      - $(cat "$BASE_DIR/ssh-key/id_rsa.pub")" >> "$BASE_DIR/target/docker-compose.yml"
@@ -156,7 +167,14 @@ for i in $(seq 1 $NUM_NODES); do
   fi
   echo "      - 9001" >> "$BASE_DIR/target/docker-compose.yml"
   echo "    networks:" >> "$BASE_DIR/target/docker-compose.yml"
-  echo "      - nifi" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "      nifipub:" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "        aliases:" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "          - node$i.nifipub" >> "$BASE_DIR/target/docker-compose.yml"
+#  echo "          - node$i" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "      nifipriv:" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "        aliases:" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "          - node$i.nifipriv" >> "$BASE_DIR/target/docker-compose.yml"
+#  echo "          - node$i" >> "$BASE_DIR/target/docker-compose.yml"
   echo "    volumes:" >> "$BASE_DIR/target/docker-compose.yml"
   echo "      - ./node$i:/opt/nifi-conf" >> "$BASE_DIR/target/docker-compose.yml"
   echo "      - $NIFI_ARCHIVE:/opt/nifi-archive/nifi-archive.zip" >> "$BASE_DIR/target/docker-compose.yml"
@@ -165,12 +183,21 @@ done
 
 echo  >> "$BASE_DIR/target/docker-compose.yml"
 echo "networks:" >> "$BASE_DIR/target/docker-compose.yml"
-echo "  nifi:" >> "$BASE_DIR/target/docker-compose.yml"
+echo "  nifipub:" >> "$BASE_DIR/target/docker-compose.yml"
+echo "    external: true" >> "$BASE_DIR/target/docker-compose.yml"
+echo "  nifipriv:" >> "$BASE_DIR/target/docker-compose.yml"
 echo "    external: true" >> "$BASE_DIR/target/docker-compose.yml"
 
-if [ -z "$(docker network ls | awk '{print $2}' | grep '^nifi$')" ]; then
-  echo "Creating nifi network"
-  docker network create --gateway 172.24.1.1 --subnet 172.24.1.0/24 nifi
+if [ -z "$(docker network ls | awk '{print $2}' | grep '^nifipub$')" ]; then
+  echo "Creating nifipub network"
+  docker network create --gateway 172.24.1.1 --subnet 172.24.1.0/24 nifipub
 else
-  echo "nifi network already exists, not creating"
+  echo "nifipub network already exists, not creating"
+fi
+
+if [ -z "$(docker network ls | awk '{print $2}' | grep '^nifipriv$')" ]; then
+  echo "Creating nifipriv network"
+  docker network create --gateway 172.24.2.1 --subnet 172.24.2.0/24 nifipriv
+else
+  echo "nifipriv network already exists, not creating"
 fi
