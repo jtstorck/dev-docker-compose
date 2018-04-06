@@ -19,7 +19,7 @@ if [ -n "$(docker images | grep "^$SNAPSHOT_PREFIX")" ]; then
 fi
 
 ALL_CLUSTER_NODES="$(docker-compose ps)"
-RELEVANT_CLUSTER_NODES="$(echo "$(echo "$ALL_CLUSTER_NODES" | grep "^ambari " && echo "$ALL_CLUSTER_NODES" | grep "^centos6")" | awk '{print $1}')"
+RELEVANT_CLUSTER_NODES="$(echo "$(echo "$ALL_CLUSTER_NODES" | grep "^ambari " && echo "$ALL_CLUSTER_NODES" | grep "^centos")" | awk '{print $1}')"
 
 echo "Relevant containers: " $RELEVANT_CLUSTER_NODES
 

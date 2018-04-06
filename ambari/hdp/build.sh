@@ -5,14 +5,16 @@ set -e
 # http://stackoverflow.com/questions/59895/can-a-bash-script-tell-which-directory-it-is-stored-in#answer-246128
 BASE_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd | sed 's/\/$//g' )"
 
+CENTOS_VERSION="6"
 NUM_NODES="3"
-AMBARI_URL="http://public-repo-1.hortonworks.com/ambari/centos6/2.x/updates/2.4.0.1/ambari.repo"
+AMBARI_URL="http://public-repo-1.hortonworks.com/ambari/centos$CENTOS_VERSION/2.x/updates/2.4.0.1/ambari.repo"
 SUFFIX="_compose"
 
 function printUsageAndExit() {
   echo "usage: $0 -p pub_key_file [-n num_target_nodes] [-a] [-h]"
   echo "       -h or --help                    print this message and exit"
   echo "       -a or --ambariUrl               URL of ambari repo (default: $AMBARI_URL)"
+  echo "       -c or --centosVersion           Centos version for built images (default: centos$CENTOS_VERSION)"
   echo "       -n or --numNodes                number of hdf nodes (default: $NUM_NODES)"
   echo "       -s or --suffix                  Image suffix for built images (default: $SUFFIX)"
   exit 1
@@ -47,6 +49,10 @@ while [[ $# -ge 1 ]]; do
     AMBARI_URL="$2"
     shift
     ;;
+    -c|--centosVersion)
+    CENTOS_VERSION="$2"
+    shift
+    ;;
     -n|--numNodes)
     NUM_NODES="$2"
     shift
@@ -65,22 +71,23 @@ done
 
 echo
 echo "Apache Ambari URL: $AMBARI_URL"
+echo "Centos version: $CENTOS_VERSION"
 echo "Number of nodes: $NUM_NODES"
 echo "Suffix: $SUFFIX"
 echo
 
 # Dockerfile repo
 if [ ! -e "$BASE_DIR/dev-dockerfiles" ]; then
-  git clone https://github.com/brosander/dev-dockerfiles.git
+  git clone https://github.com/jtstorck/dev-dockerfiles.git
 fi
 
-buildImage ambari "$BASE_DIR/dev-dockerfiles/ambari/server/centos6" "docker build --build-arg repo=\"$AMBARI_URL\" -t TAG_ARG ."
-buildImage squid "$BASE_DIR/dev-dockerfiles/squid/centos6"
+buildImage ambari "$BASE_DIR/dev-dockerfiles/ambari/server/centos$CENTOS_VERSION" "docker build --build-arg repo=\"$AMBARI_URL\" -t TAG_ARG ."
+buildImage squid "$BASE_DIR/dev-dockerfiles/squid/centos$CENTOS_VERSION"
 buildImage ubuntu-ssh "$BASE_DIR/dev-dockerfiles/openssh-server/ubuntu"
-buildImage centos6-ssh "$BASE_DIR/dev-dockerfiles/openssh-server/centos6"
+buildImage centos$CENTOS_VERSION-ssh "$BASE_DIR/dev-dockerfiles/openssh-server/centos$CENTOS_VERSION"
 buildImage gateway "$BASE_DIR/dev-dockerfiles/ambari/gateway/ubuntu"
-buildImage root-ambari-agent "$BASE_DIR/dev-dockerfiles/ambari/agent/root/centos6"
-buildImage non-root-ambari-agent "$BASE_DIR/dev-dockerfiles/ambari/agent/non-root/centos6" "docker build --build-arg repo=\"$AMBARI_URL\" -t TAG_ARG ."
+buildImage root-ambari-agent "$BASE_DIR/dev-dockerfiles/ambari/agent/root/centos$CENTOS_VERSION"
+buildImage non-root-ambari-agent "$BASE_DIR/dev-dockerfiles/ambari/agent/non-root/centos$CENTOS_VERSION" "docker build --build-arg repo=\"$AMBARI_URL\" -t TAG_ARG ."
 
 if [ ! -e "$BASE_DIR/ssh-key" ]; then
   mkdir "$BASE_DIR/ssh-key"
@@ -132,13 +139,13 @@ echo "    environment:" >> "$BASE_DIR/target/docker-compose.yml"
 echo "      - YUM_PROXY=http://squid:3128" >> "$BASE_DIR/target/docker-compose.yml"
 
 for i in $(seq 1 $NUM_NODES); do
-  docker tag non-root-ambari-agent "centos6$i$SUFFIX"
+  docker tag non-root-ambari-agent "centos$CENTOS_VERSION$i$SUFFIX"
 
   echo  >> "$BASE_DIR/target/docker-compose.yml"
-  echo "  centos6$i:" >> "$BASE_DIR/target/docker-compose.yml"
-  echo "    container_name: centos6$i" >> "$BASE_DIR/target/docker-compose.yml"
-  echo "    hostname: centos6$i.ambari" >> "$BASE_DIR/target/docker-compose.yml"
-  echo "    image: centos6$i$SUFFIX" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "  centos$CENTOS_VERSION$i:" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "    container_name: centos$CENTOS_VERSION$i" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "    hostname: centos$CENTOS_VERSION$i.ambari" >> "$BASE_DIR/target/docker-compose.yml"
+  echo "    image: centos$CENTOS_VERSION$i$SUFFIX" >> "$BASE_DIR/target/docker-compose.yml"
   echo "    restart: always" >> "$BASE_DIR/target/docker-compose.yml"
   echo "    networks:" >> "$BASE_DIR/target/docker-compose.yml"
   echo "      - ambari" >> "$BASE_DIR/target/docker-compose.yml"

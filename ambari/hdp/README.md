@@ -1,4 +1,4 @@
-## HDF Cluster with Apache Ambari
+## HDP Cluster with Apache Ambari
 
 Getting a cluster running for dev-testing purposes can be tedious, this is an attempt to alleviate the tedium.
 
@@ -8,8 +8,8 @@ After starting the cluster, it is useful to use the gateway container as a SOCKS
 usage: ./build.sh -m mpack_dir -p pub_key_file [-n num_target_nodes] [-a] [-h]
        -h or --help                    print this message and exit
        -a or --ambariUrl               URL of ambari repo (default: http://public-repo-1.hortonworks.com/ambari/centos6/2.x/updates/2.4.0.1/ambari.repo)
-       -m or --mpackUrl                URL of Mpack to download, only used if no mpack dir present (default: http://public-repo-1.hortonworks.com/HDF/centos6/2.x/updates/2.0.0.0/tars/hdf_ambari_mp/hdf-ambari-mpack-2.0.0.0-579.tar.gz)
-       -n or --numNodes                number of hdf nodes (default: 3)
+       -c or --centosVersion           Centos version for built images (default: centos6)
+       -n or --numNodes                number of HDP nodes (default: 3)
        -s or --suffix                  Image suffix for built images (default: _compose)
 ```
 
